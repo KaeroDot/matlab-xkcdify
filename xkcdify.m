@@ -35,7 +35,7 @@ function xkcdify(axesList, renderAxesLines)
     end
     
     if nargin==1
-        renderAxesLines = 0;
+        renderAxesLines = 1;  % Default to rendering hand-drawn axes
     end
     
     for axN = 1:numel(axesList)
@@ -49,6 +49,8 @@ function xkcdify(axesList, renderAxesLines)
     
         if renderAxesLines == 1
             renderNewAxesLine(axHandle)
+            % Hide the original axes since we're drawing hand-drawn ones
+            set(axHandle, 'XColor', 'none', 'YColor', 'none');
         end
         
         % Change all text fonts to xkcd Script
@@ -60,50 +62,138 @@ function xkcdify(axesList, renderAxesLines)
     
 function renderNewAxesLine(ax)
     
-    nPixOffset = 15;
-    
     isBoxOn = strcmp( get(ax,'Box'), 'on' );
     set(ax,'Box', 'off');
-    % Get the correct location for the next axes
+    
+    % Get original axes position and limits
     pos = getAxesPositionInUnits(ax,'Pixels');
-    pos(1:2) = pos(1:2) - nPixOffset;
-
-    if isBoxOn
-        pos(3:4) = pos(3:4) + nPixOffset*2;
-    else
-        pos(3:4) = pos(3:4) + nPixOffset;
-    end
+    origXLim = get(ax, 'XLim');
+    origYLim = get(ax, 'YLim');
     
-    
+    % Create new axes with exactly the same position and limits as original
     newAxes = axes('Units', 'pixels', 'Position', pos, 'Color', 'none');
+    set(newAxes, 'XLim', origXLim, 'YLim', origYLim);
     set(newAxes,'Units', get(ax,'Units'), 'XTick', [], 'YTick', []);
-   
-    
-    [px py] = getPixelsPerUnitForAxes(newAxes);
-    dx = nPixOffset / px;
-    dy = nPixOffset / py;      
     
     xlim = get(newAxes,'XLim');
     ylim = get(newAxes, 'YLim');
-
+    ranges = [abs(xlim(2) - xlim(1)) abs(ylim(2) - ylim(1))];
     
-    axArgs = {'Parent', newAxes, 'Color', 'k', 'LineWidth', 4};
-    axLine(1) = line( [dx dx], ylim + [dy -dy], axArgs{:});
-    axLine(2) = line( xlim + [dx -dx], [dy dy], axArgs{:});
+    % Small offsets for drawing axes slightly inside the plot area
+    dx = 0.01 * ranges(1);
+    dy = 0.01 * ranges(2);
     
-    %if 'Box' is on then draw the top and right edges of thea axes
+    % Create hand-drawn axes with wobble (inspired by gnovice's xkcd_axes)
+    axArgs = {'Parent', newAxes, 'Color', 'k', 'LineWidth', 3, 'Clipping', 'off'};
+    
+    % Number of points for wobbly lines
+    xPoints = round(pos(3)/10);
+    yPoints = round(pos(4)/10);
+    
+    % Y-axis (left): vertical line with horizontal wobble
+    yAxisY = linspace(ylim(1), ylim(2), yPoints);
+    yAxisX = xlim(1) + rand(1, yPoints).*0.005.*ranges(1);
+    axLine(1) = line(yAxisX, yAxisY, axArgs{:});
+    
+    % X-axis (bottom): horizontal line with vertical wobble
+    xAxisX = linspace(xlim(1), xlim(2), xPoints);
+    xAxisY = ylim(1) + rand(1, xPoints).*0.005.*ranges(2);
+    axLine(2) = line(xAxisX, xAxisY, axArgs{:});
+    
+    %if 'Box' is on then draw the top and right edges
     if isBoxOn
-        axLine(3) = line( xlim(2) - [dx dx] + .00001, ylim + [dy -dy], axArgs{:});
-        axLine(4) = line( xlim + [dx -dx], ylim(2) - [dy dy] + .00001,  axArgs{:});
+        % Right edge: vertical line with horizontal wobble
+        rightY = linspace(ylim(1), ylim(2), yPoints);
+        rightX = xlim(2) + rand(1, yPoints).*0.005.*ranges(1);
+        axLine(3) = line(rightX, rightY, axArgs{:});
+        
+        % Top edge: horizontal line with vertical wobble
+        topX = linspace(xlim(1), xlim(2), xPoints);
+        topY = ylim(2) + rand(1, xPoints).*0.005.*ranges(2);
+        axLine(4) = line(topX, topY, axArgs{:});
     end
     
-    axis(newAxes, 'off');
-    for i = 1:numel(axLine)
-        cartoonifyAxesEdge(axLine(i), newAxes);
+    % Turn off axes box and grid, but keep labels visible
+    set(newAxes, 'Box', 'off', 'XColor', 'none', 'YColor', 'none', 'XGrid', 'off', 'YGrid', 'off');
+    
+    % Draw tick marks and labels
+    % X-axis ticks
+    xTicks = get(ax, 'XTick');
+    if ~isempty(xTicks)
+        yTickPos = ylim(1);  % Position on the x-axis line (bottom of new axes)
+        tickLength = 0.02 * ranges(2);  % Tick mark length
+        
+        for i = 1:length(xTicks)
+            % Draw tick mark - xTicks values are already in the correct coordinate space
+            line([xTicks(i) xTicks(i)], [yTickPos - tickLength, yTickPos + tickLength], ...
+                 'Parent', newAxes, 'Color', 'k', 'LineWidth', 2, 'Clipping', 'off');
+        end
+        
+        % Draw tick labels
+        xLabels = get(ax, 'XTickLabel');
+        if iscell(xLabels)
+            yLabelPos = ylim(1) - 0.04 * ranges(2);
+            for i = 1:length(xLabels)
+                text(xTicks(i), yLabelPos, xLabels{i}, ...
+                     'Parent', newAxes, 'HorizontalAlignment', 'center', ...
+                     'VerticalAlignment', 'top', 'FontName', 'xkcd Script', 'FontSize', 16);
+            end
+        endif
     end
-      
+    
+    % Y-axis ticks
+    yTicks = get(ax, 'YTick');
+    if ~isempty(yTicks)
+        xTickPos = xlim(1);  % Position on the y-axis line (left of new axes)
+        tickLength = 0.02 * ranges(1);  % Tick mark length
+        
+        for i = 1:length(yTicks)
+            % Draw tick mark - yTicks values are already in the correct coordinate space
+            line([xTickPos - tickLength, xTickPos + tickLength], [yTicks(i) yTicks(i)], ...
+                 'Parent', newAxes, 'Color', 'k', 'LineWidth', 2, 'Clipping', 'off');
+        end
+        
+        % Draw tick labels
+        yLabels = get(ax, 'YTickLabel');
+        if iscell(yLabels)
+            xLabelPos = xlim(1) - 0.04 * ranges(1);
+            for i = 1:length(yLabels)
+                text(xLabelPos, yTicks(i), yLabels{i}, ...
+                     'Parent', newAxes, 'HorizontalAlignment', 'right', ...
+                     'VerticalAlignment', 'middle', 'FontName', 'xkcd Script', 'FontSize', 16);
+            end
+        endif
+    end
+    
     set(ax, 'FontName', 'xkcd Script', 'FontSize', 16);
     
+    % Copy axis labels from original axes as text objects in the new axes
+    origXLabel = get(ax, 'XLabel');
+    if ~isempty(origXLabel) && origXLabel ~= 0
+        xlabelText = get(origXLabel, 'String');
+        if ~isempty(xlabelText)
+            % Position xlabel below the x-axis
+            xLabelX = mean(xlim);
+            xLabelY = ylim(1) - 0.12 * ranges(2);
+            text(xLabelX, xLabelY, xlabelText, ...
+                 'Parent', newAxes, 'HorizontalAlignment', 'center', ...
+                 'VerticalAlignment', 'top', 'FontName', 'xkcd Script', 'FontSize', 16);
+        endif
+    endif
+    
+    origYLabel = get(ax, 'YLabel');
+    if ~isempty(origYLabel) && origYLabel ~= 0
+        ylabelText = get(origYLabel, 'String');
+        if ~isempty(ylabelText)
+            % Position ylabel to the left of the y-axis, rotated
+            yLabelX = xlim(1) - 0.12 * ranges(1);
+            yLabelY = mean(ylim);
+            text(yLabelX, yLabelY, ylabelText, ...
+                 'Parent', newAxes, 'HorizontalAlignment', 'center', ...
+                 'VerticalAlignment', 'bottom', 'Rotation', 90, ...
+                 'FontName', 'xkcd Script', 'FontSize', 16);
+        endif
+    endif
    
 end
 
