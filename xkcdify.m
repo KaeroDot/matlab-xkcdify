@@ -51,6 +51,9 @@ function xkcdify(axesList, renderAxesLines)
             renderNewAxesLine(axHandle)
         end
         
+        % Change all text fonts to xkcd Script
+        changeAllTextFonts(axHandle);
+        
     end
 
     
@@ -99,7 +102,7 @@ function renderNewAxesLine(ax)
         cartoonifyAxesEdge(axLine(i), newAxes);
     end
       
-    set(ax, 'FontName', 'Comic Sans MS', 'FontSize', 14);
+    set(ax, 'FontName', 'xkcd Script', 'FontSize', 16);
     
    
 end
@@ -122,6 +125,10 @@ function operareOnChildren(C, ax)
 
             case 'patch'
                 cartoonifyPatch(c, ax);
+ 
+            case 'text'
+                % Change text font to xkcd Script
+                set(c, 'FontName', 'xkcd Script');
  
             case 'hggroup'              
                 % if not a line or patch operate on the children of the
@@ -467,6 +474,39 @@ function cartoonifyPatch(p, ax)
     
     % Bring the patch back to top after adding background masks
     uistack(p, 'top');
+end
+
+function changeAllTextFonts(ax)
+    % Change font of text labels in the axes to xkcd Script
+    % This includes title, xlabel, ylabel, zlabel AND tick labels via axes FontName
+    
+    % Set axes FontName and FontSize for tick labels
+    set(ax, 'FontName', 'xkcd Script', 'FontSize', 16);
+    
+    % Change title
+    titleHandle = get(ax, 'Title');
+    if ~isempty(titleHandle) && titleHandle ~= 0
+        set(titleHandle, 'FontName', 'xkcd Script', 'FontSize', 18);
+    endif
+    
+    % Change xlabel
+    xlabelHandle = get(ax, 'XLabel');
+    if ~isempty(xlabelHandle) && xlabelHandle ~= 0
+        set(xlabelHandle, 'FontName', 'xkcd Script', 'FontSize', 16);
+    endif
+    
+    % Change ylabel
+    ylabelHandle = get(ax, 'YLabel');
+    if ~isempty(ylabelHandle) && ylabelHandle ~= 0
+        set(ylabelHandle, 'FontName', 'xkcd Script', 'FontSize', 16);
+    endif
+    
+    % Change zlabel (for 3D plots)
+    zlabelHandle = get(ax, 'ZLabel');
+    if ~isempty(zlabelHandle) && zlabelHandle ~= 0
+        set(zlabelHandle, 'FontName', 'xkcd Script', 'FontSize', 16);
+    endif
+    
 end
 
 
