@@ -119,17 +119,14 @@ function operareOnChildren(C, ax)
         switch cType
             case 'line'
                 cartoonifyLine(c, ax);
-                uistack(c,'top');
 
             case 'patch'
                 cartoonifyPatch(c, ax);
-                uistack(c,'top');
  
             case 'hggroup'              
                 % if not a line or patch operate on the children of the
                 % hggroup child, plot-ception!
                 operareOnChildren( get(c,'Children'), ax); 
-                uistack(c,'top');
             otherwise
                 warning('Received unsupportd child of type %s', cType);
         end        
@@ -172,7 +169,9 @@ function cartoonifyLine(l,  ax)
     
     
     addBackgroundMask(xpts, ypts, get(l, 'LineWidth') * 3, ax);
-
+    
+    % Bring the colored line back to top after adding the background mask
+    uistack(l, 'top');
 
     
 end
@@ -385,6 +384,9 @@ function cartoonifyPatch(p, ax)
     oldVtx = get(p, 'Vertices');
     oldVtxNorm = get(p, 'VertexNormals');
     
+    % Check if VertexNormals exist (they may be empty for 2D patches)
+    hasVertexNormals = ~isempty(oldVtxNorm);
+    
     nPatch = size(xPts, 2);
     nVtx  = size(oldVtx,1);
     
@@ -414,7 +416,10 @@ function cartoonifyPatch(p, ax)
      
         
         newVtx(end+1,1:2) = oldVtx( 1 + (i-1)*(nOld+1), 1:2);
-        newVtxNorm( end+1, 1:3) = nan;
+        
+        if hasVertexNormals
+            newVtxNorm( end+1, 1:3) = nan;
+        endif
         
 
         % set the first and last vertex for each bar back in its original
@@ -424,15 +429,21 @@ function cartoonifyPatch(p, ax)
 
       
         newVtx(end + (1:nNew), :) = [xNew(:,i), yNew(:,i)] ;
-        t = repmat( oldVtxNorm( 1+1 + (i-1)*(nOld+1) , : ), nNew, 1);
-        newVtxNorm( end+ (1 : nNew) , : ) = t;
+        
+        if hasVertexNormals
+            t = repmat( oldVtxNorm( 1+1 + (i-1)*(nOld+1) , : ), nNew, 1);
+            newVtxNorm( end+ (1 : nNew) , : ) = t;
+        endif
         
         addBackgroundMask(xNew(:,i), yNew(:,i), 6, ax);
        
     end
     
     newVtx(end+1, :) = oldVtx(end,:);
-    newVtxNorm(end+1, : ) = nan;
+    
+    if hasVertexNormals
+        newVtxNorm(end+1, : ) = nan;
+    endif
     
     
     % construct the new vertex data
@@ -445,9 +456,17 @@ function cartoonifyPatch(p, ax)
     % the default matlab blue not the same as 'color', 'blue'!
     newFaceVtxCData = [ 0 0 .5608 ];
       
-    set(p, 'CData', cNew, 'FaceVertexCData', newFaceVtxCData, 'Faces', newFaces,  ...
-        'Vertices', newVtx, 'XData', xNew, 'YData', yNew, 'VertexNormals', newVtxNorm);
+    if hasVertexNormals
+        set(p, 'CData', cNew, 'FaceVertexCData', newFaceVtxCData, 'Faces', newFaces,  ...
+            'Vertices', newVtx, 'XData', xNew, 'YData', yNew, 'VertexNormals', newVtxNorm);
+    else
+        set(p, 'CData', cNew, 'FaceVertexCData', newFaceVtxCData, 'Faces', newFaces,  ...
+            'Vertices', newVtx, 'XData', xNew, 'YData', yNew);
+    endif
     %set(p, 'EdgeColor', 'none');
+    
+    % Bring the patch back to top after adding background masks
+    uistack(p, 'top');
 end
 
 
