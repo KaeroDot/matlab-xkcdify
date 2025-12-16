@@ -25,6 +25,16 @@ function xkcdify(axesList, renderAxesLines)
 % Revision History
 %   2012/10/04 - Initial Release
 
+    % ===== XKCDIFY CONFIGURATION CONSTANTS =====
+    % Font settings
+    persistent XKCD_FONT_NAME = 'xkcd Script';
+    persistent XKCD_FONT_SIZE_NORMAL = 16;    % For axes, labels, tick labels
+    persistent XKCD_FONT_SIZE_TITLE = 18;     % For plot titles
+    
+    % Label spacing (in pixels)
+    persistent XKCD_XLABEL_SPACE = 35;        % Extra space at bottom for xlabel
+    persistent XKCD_YLABEL_SPACE = 45;        % Extra space at left for ylabel
+    % ==========================================
     
     if nargin==0
         error('axHandle must be specified');
@@ -65,7 +75,38 @@ function renderNewAxesLine(ax)
     isBoxOn = strcmp( get(ax,'Box'), 'on' );
     set(ax,'Box', 'off');
     
-    % Get original axes position and limits
+    % Check if xlabel or ylabel exist and need space
+    origXLabel = get(ax, 'XLabel');
+    origYLabel = get(ax, 'YLabel');
+    hasXLabel = ~isempty(origXLabel) && origXLabel ~= 0 && ~isempty(get(origXLabel, 'String'));
+    hasYLabel = ~isempty(origYLabel) && origYLabel ~= 0 && ~isempty(get(origYLabel, 'String'));
+    
+    % Get original axes position and adjust to make room for labels with larger fonts
+    pos = getAxesPositionInUnits(ax,'Pixels');
+    
+    % Add space for labels by shrinking the axes and moving it
+    extraBottomSpace = 0;
+    extraLeftSpace = 0;
+    
+    if hasXLabel
+        extraBottomSpace = XKCD_XLABEL_SPACE;
+    endif
+    
+    if hasYLabel
+        extraLeftSpace = XKCD_YLABEL_SPACE;
+    endif
+    
+    % Adjust original axes position to make room for labels
+    if extraLeftSpace > 0 || extraBottomSpace > 0
+        set(ax, 'Units', 'pixels');
+        pos(1) = pos(1) + extraLeftSpace;
+        pos(2) = pos(2) + extraBottomSpace;
+        pos(3) = pos(3) - extraLeftSpace;
+        pos(4) = pos(4) - extraBottomSpace;
+        set(ax, 'Position', pos);
+    endif
+    
+    % Get updated position and limits
     pos = getAxesPositionInUnits(ax,'Pixels');
     origXLim = get(ax, 'XLim');
     origYLim = get(ax, 'YLim');
@@ -136,7 +177,7 @@ function renderNewAxesLine(ax)
             for i = 1:length(xLabels)
                 text(xTicks(i), yLabelPos, xLabels{i}, ...
                      'Parent', newAxes, 'HorizontalAlignment', 'center', ...
-                     'VerticalAlignment', 'top', 'FontName', 'xkcd Script', 'FontSize', 16);
+                     'VerticalAlignment', 'top', 'FontName', XKCD_FONT_NAME, 'FontSize', XKCD_FONT_SIZE_NORMAL);
             end
         endif
     end
@@ -160,12 +201,12 @@ function renderNewAxesLine(ax)
             for i = 1:length(yLabels)
                 text(xLabelPos, yTicks(i), yLabels{i}, ...
                      'Parent', newAxes, 'HorizontalAlignment', 'right', ...
-                     'VerticalAlignment', 'middle', 'FontName', 'xkcd Script', 'FontSize', 16);
+                     'VerticalAlignment', 'middle', 'FontName', XKCD_FONT_NAME, 'FontSize', XKCD_FONT_SIZE_NORMAL);
             end
         endif
     end
     
-    set(ax, 'FontName', 'xkcd Script', 'FontSize', 16);
+    set(ax, 'FontName', XKCD_FONT_NAME, 'FontSize', XKCD_FONT_SIZE_NORMAL);
     
     % Copy axis labels from original axes as text objects in the new axes
     origXLabel = get(ax, 'XLabel');
@@ -177,7 +218,7 @@ function renderNewAxesLine(ax)
             xLabelY = ylim(1) - 0.12 * ranges(2);
             text(xLabelX, xLabelY, xlabelText, ...
                  'Parent', newAxes, 'HorizontalAlignment', 'center', ...
-                 'VerticalAlignment', 'top', 'FontName', 'xkcd Script', 'FontSize', 16);
+                 'VerticalAlignment', 'top', 'FontName', XKCD_FONT_NAME, 'FontSize', XKCD_FONT_SIZE_NORMAL);
         endif
     endif
     
@@ -191,7 +232,7 @@ function renderNewAxesLine(ax)
             text(yLabelX, yLabelY, ylabelText, ...
                  'Parent', newAxes, 'HorizontalAlignment', 'center', ...
                  'VerticalAlignment', 'bottom', 'Rotation', 90, ...
-                 'FontName', 'xkcd Script', 'FontSize', 16);
+                 'FontName', XKCD_FONT_NAME, 'FontSize', XKCD_FONT_SIZE_NORMAL);
         endif
     endif
    
@@ -218,7 +259,7 @@ function operareOnChildren(C, ax)
  
             case 'text'
                 % Change text font to xkcd Script
-                set(c, 'FontName', 'xkcd Script');
+                set(c, 'FontName', XKCD_FONT_NAME);
  
             case 'hggroup'              
                 % if not a line or patch operate on the children of the
@@ -571,30 +612,30 @@ function changeAllTextFonts(ax)
     % This includes title, xlabel, ylabel, zlabel AND tick labels via axes FontName
     
     % Set axes FontName and FontSize for tick labels
-    set(ax, 'FontName', 'xkcd Script', 'FontSize', 16);
+    set(ax, 'FontName', XKCD_FONT_NAME, 'FontSize', XKCD_FONT_SIZE_NORMAL);
     
     % Change title
     titleHandle = get(ax, 'Title');
     if ~isempty(titleHandle) && titleHandle ~= 0
-        set(titleHandle, 'FontName', 'xkcd Script', 'FontSize', 18);
+        set(titleHandle, 'FontName', XKCD_FONT_NAME, 'FontSize', XKCD_FONT_SIZE_TITLE);
     endif
     
     % Change xlabel
     xlabelHandle = get(ax, 'XLabel');
     if ~isempty(xlabelHandle) && xlabelHandle ~= 0
-        set(xlabelHandle, 'FontName', 'xkcd Script', 'FontSize', 16);
+        set(xlabelHandle, 'FontName', XKCD_FONT_NAME, 'FontSize', XKCD_FONT_SIZE_NORMAL);
     endif
     
     % Change ylabel
     ylabelHandle = get(ax, 'YLabel');
     if ~isempty(ylabelHandle) && ylabelHandle ~= 0
-        set(ylabelHandle, 'FontName', 'xkcd Script', 'FontSize', 16);
+        set(ylabelHandle, 'FontName', XKCD_FONT_NAME, 'FontSize', XKCD_FONT_SIZE_NORMAL);
     endif
     
     % Change zlabel (for 3D plots)
     zlabelHandle = get(ax, 'ZLabel');
     if ~isempty(zlabelHandle) && zlabelHandle ~= 0
-        set(zlabelHandle, 'FontName', 'xkcd Script', 'FontSize', 16);
+        set(zlabelHandle, 'FontName', XKCD_FONT_NAME, 'FontSize', XKCD_FONT_SIZE_NORMAL);
     endif
     
 end
