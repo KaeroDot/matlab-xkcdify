@@ -240,20 +240,21 @@ end
 
 
 function operareOnChildren(C, ax)
-
     % iterate on the individual children but in reverse order
     % also ensure that C is treated as a row vector
-    
+
     for c = fliplr( C(:)' )
     %for i = 1:nCh
         % we want to 
      %   c = C(nCh - i + 1);
         cType = get(c,'Type');
-                
+
         switch cType
             case 'line'
-                cartoonifyLine(c, ax);
-
+                % cartoonify line only if children got any line
+                if not(strcmp(get(c, 'linestyle'), 'none'))
+                    cartoonifyLine(c, ax);
+                end
             case 'patch'
                 cartoonifyPatch(c, ax);
  
@@ -280,6 +281,12 @@ function cartoonifyLine(l,  ax)
 
     xpts = get(l, 'XData')';
     ypts = get(l, 'YData')';
+    
+    % Force line width to be at least 4
+    currentLineWidth = get(l, 'LineWidth');
+    if currentLineWidth < 4
+        set(l, 'LineWidth', 4);
+    end
 
     %only jitter lines with more than 1 point   
     if numel(xpts)>1 
