@@ -1,9 +1,19 @@
 # XKCDIFY
 
+**(fork of slayton/matlab-xkcdify to make it better and compatible also in GNU Octave)**
+
 XKCDIFY is tool for converting most matlab plot to XKCD style plots!
 
+Normal plot:
+
+![normal plot](example1_before.png)
+
+After using xkcdify(gca):
+
+![xkcdify plot](example1_after.png)
+
 XKCDIFY was designed to work in conjunction with the standard Matlab plotting utilities, making it compatible
-with most matlab code. Simply create plot as you would with any of the standard 2D plotting tools and when you 
+with most matlab code. Simply create plot as you would with any of the standard 2D plotting tools and when you
 satisfied you can then XKCDIFY them.
 
 XKCDIFY works by iterating over the children of an axes and distorts the individual children based upon their TYPE.
@@ -16,6 +26,7 @@ Here are a few examples of the types of plots that XKCDIFY can operate on.  Each
 on the left and the XKCD style plot on the right.
 
 ##### Simple Line Plots
+
 ```matlab
 figure('Position', [100 460 1120 420]);
 a(1) = subplot(121); a(2) = subplot(122);
@@ -31,7 +42,8 @@ set(a, 'XLim', [x(1) - .25, x(end)+.25], 'YLim', [-.9 .9]);
 
 xkcdify(a(2));
 ```
-![Regular and XKCD styled Line Plots](https://raw.github.com/slayton/matlab-xkcdify/master/line_example.png)
+
+![Regular and XKCD styled Line Plots](line_example.png)
 
 ##### Bar and Line Plots
 
@@ -54,7 +66,7 @@ set(a, 'XLim', [.5 4.5], 'YLim', [0 7]);
 xkcdify(a(2));
 ```
 
-![Bar and Line Plots](https://raw.github.com/slayton/matlab-xkcdify/master/bar_example.png)
+![Bar and Line Plots](bar_example.png)
 
 ##### Box and Line Plots
 
@@ -78,8 +90,7 @@ line(x, y, 'color', 'g', 'linewidth', 3, 'Parent', a(2));
 
 xkcdify(gca)
 ```
-![](https://raw.github.com/slayton/matlab-xkcdify/master/box_example.png)
 
-The source for these examples is found in [xkcdify_examples.m](https://github.com/slayton/matlab-xkcdify/blob/master/xkcdify_example.m)
+![](box_example.png)
 
-
+The source for these examples is found in [xkcdify_examples.m](xkcdify_example.m)
