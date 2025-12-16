@@ -34,6 +34,7 @@ function xkcdify(axesList, renderAxesLines)
     % Label spacing (in pixels)
     persistent XKCD_XLABEL_SPACE = 35;        % Extra space at bottom for xlabel
     persistent XKCD_YLABEL_SPACE = 45;        % Extra space at left for ylabel
+    persistent XKCD_LINE_WIDTH = 3;           % Line width for hand-drawn axes, lines and markers
     % ==========================================
     
     if nargin==0
@@ -125,7 +126,7 @@ function renderNewAxesLine(ax)
     dy = 0.01 * ranges(2);
     
     % Create hand-drawn axes with wobble (inspired by gnovice's xkcd_axes)
-    axArgs = {'Parent', newAxes, 'Color', 'k', 'LineWidth', 3, 'Clipping', 'off'};
+    axArgs = {'Parent', newAxes, 'Color', 'k', 'LineWidth', XKCD_LINE_WIDTH, 'Clipping', 'off'};
     
     % Number of points for wobbly lines
     xPoints = round(pos(3)/10);
@@ -167,7 +168,7 @@ function renderNewAxesLine(ax)
         for i = 1:length(xTicks)
             % Draw tick mark - xTicks values are already in the correct coordinate space
             line([xTicks(i) xTicks(i)], [yTickPos - tickLength, yTickPos + tickLength], ...
-                 'Parent', newAxes, 'Color', 'k', 'LineWidth', 2, 'Clipping', 'off');
+                 'Parent', newAxes, 'Color', 'k', 'LineWidth', XKCD_LINE_WIDTH, 'Clipping', 'off');
         end
         
         % Draw tick labels
@@ -191,7 +192,7 @@ function renderNewAxesLine(ax)
         for i = 1:length(yTicks)
             % Draw tick mark - yTicks values are already in the correct coordinate space
             line([xTickPos - tickLength, xTickPos + tickLength], [yTicks(i) yTicks(i)], ...
-                 'Parent', newAxes, 'Color', 'k', 'LineWidth', 2, 'Clipping', 'off');
+                 'Parent', newAxes, 'Color', 'k', 'LineWidth', XKCD_LINE_WIDTH, 'Clipping', 'off');
         end
         
         % Draw tick labels
@@ -251,10 +252,7 @@ function operareOnChildren(C, ax)
 
         switch cType
             case 'line'
-                % cartoonify line only if children got any line
-                if not(strcmp(get(c, 'linestyle'), 'none'))
-                    cartoonifyLine(c, ax);
-                end
+                cartoonifyLine(c, ax);
             case 'patch'
                 cartoonifyPatch(c, ax);
  
@@ -282,41 +280,75 @@ function cartoonifyLine(l,  ax)
     xpts = get(l, 'XData')';
     ypts = get(l, 'YData')';
     
-    % Force line width to be at least 4
-    currentLineWidth = get(l, 'LineWidth');
-    if currentLineWidth < 4
-        set(l, 'LineWidth', 4);
+    % Get original line style
+    origLineStyle = get(l, 'LineStyle');
+    hasLine = ~strcmp(origLineStyle, 'none');
+    
+    % Force line width to be at least 4 (only if there's a line)
+    if hasLine
+        currentLineWidth = get(l, 'LineWidth');
+        if currentLineWidth < XKCD_LINE_WIDTH
+            set(l, 'LineWidth', XKCD_LINE_WIDTH);
+        end
     end
-
-    %only jitter lines with more than 1 point   
-    if numel(xpts)>1 
-
-        [pixPerX, pixPerY] = getPixelsPerUnitForAxes(ax);
- 
-        % I should figure out a better way to calculate this
-        xJitter = 6 / pixPerX; 
-        yJitter = 6 / pixPerY;
-
-        if all( diff( ypts) == 0) 
-            % if the line is horizontal don't jitter in X
-            xJitter = 0;
+    
+    % Handle markers - replace 'o' and 'x' with wobbly versions
+    markerType = get(l, 'Marker');
+    lineColor = get(l, 'Color');
+    
+    if ~strcmp(markerType, 'none')
+        % Get original data points (before jittering)
+        origXpts = get(l, 'XData')';
+        origYpts = get(l, 'YData')';
         
-        elseif all( diff( xpts) == 0)
-            % if the line is veritcal don't jitter in y
-            yJitter = 0;      
+        if strcmp(markerType, 'o')
+            % Draw wobbly circles at each data point
+            drawWobblyCircles(origXpts, origYpts, lineColor, ax);
+            % Remove original markers
+            set(l, 'Marker', 'none');
+        elseif strcmp(markerType, 'x') || strcmp(markerType, '+')
+            % Draw wobbly crosses at each data point
+            drawWobblyCrosses(origXpts, origYpts, lineColor, ax, markerType);
+            % Remove original markers
+            set(l, 'Marker', 'none');
+        end
+    end
+    
+    % Only process line if it has a visible linestyle
+    if hasLine
+        %only jitter lines with more than 1 point   
+        if numel(xpts)>1 
+
+            [pixPerX, pixPerY] = getPixelsPerUnitForAxes(ax);
+     
+            % I should figure out a better way to calculate this
+            xJitter = 6 / pixPerX; 
+            yJitter = 6 / pixPerY;
+
+            if all( diff( ypts) == 0) 
+                % if the line is horizontal don't jitter in X
+                xJitter = 0;
+            
+            elseif all( diff( xpts) == 0)
+                % if the line is veritcal don't jitter in y
+                yJitter = 0;      
+            end
+            
+            [xpts, ypts] = upSampleAndJitter(xpts, ypts, xJitter, yJitter);
+                   
         end
         
-        [xpts, ypts] = upSampleAndJitter(xpts, ypts, xJitter, yJitter);
-               
+        set(l, 'XData', xpts , 'YData', ypts, 'linestyle', '-');
+        
+        
+        addBackgroundMask(xpts, ypts, get(l, 'LineWidth') * 3, ax);
+        
+        % Bring the colored line back to top after adding the background mask
+        uistack(l, 'top');
+    else
+        % If no line, just keep the linestyle as 'none'
+        set(l, 'LineStyle', 'none');
     end
-    
-    set(l, 'XData', xpts , 'YData', ypts, 'linestyle', '-');
-    
-    
-    addBackgroundMask(xpts, ypts, get(l, 'LineWidth') * 3, ax);
-    
-    % Bring the colored line back to top after adding the background mask
-    uistack(l, 'top');
 
     
 end
@@ -645,6 +677,87 @@ function changeAllTextFonts(ax)
         set(zlabelHandle, 'FontName', XKCD_FONT_NAME, 'FontSize', XKCD_FONT_SIZE_NORMAL);
     endif
     
+end
+
+function drawWobblyCircles(xpts, ypts, color, ax)
+    % Draw wobbly circles at each data point
+    [pixPerX, pixPerY] = getPixelsPerUnitForAxes(ax);
+    
+    % Circle radius in data units (approximately 8 pixels)
+    radiusX = 8 / pixPerX;
+    radiusY = 8 / pixPerY;
+    
+    for i = 1:length(xpts)
+        % Create circle points
+        theta = linspace(0, 2*pi, 20);
+        circleX = xpts(i) + radiusX * cos(theta);
+        circleY = ypts(i) + radiusY * sin(theta);
+        
+        % Add wobble to circle
+        wobbleX = radiusX * 0.15 * (rand(size(theta)) - 0.5);
+        wobbleY = radiusY * 0.15 * (rand(size(theta)) - 0.5);
+        
+        circleX = circleX + wobbleX;
+        circleY = circleY + wobbleY;
+        
+        % Draw the wobbly circle
+        line(circleX, circleY, 'Parent', ax, 'Color', color, 'LineWidth', XKCD_LINE_WIDTH, 'Clipping', 'off');
+    end
+end
+
+function drawWobblyCrosses(xpts, ypts, color, ax, markerType)
+    % Draw wobbly crosses or plus signs at each data point
+    [pixPerX, pixPerY] = getPixelsPerUnitForAxes(ax);
+    
+    % Cross arm length in data units (approximately 8 pixels)
+    armLengthX = 8 / pixPerX;
+    armLengthY = 8 / pixPerY;
+    
+    for i = 1:length(xpts)
+        if strcmp(markerType, 'x')
+            % Draw X-shaped cross (diagonal lines)
+            % Line 1: top-left to bottom-right
+            x1 = [xpts(i) - armLengthX, xpts(i) + armLengthX];
+            y1 = [ypts(i) + armLengthY, ypts(i) - armLengthY];
+            
+            % Add wobble
+            x1 = x1 + armLengthX * 0.15 * (rand(size(x1)) - 0.5);
+            y1 = y1 + armLengthY * 0.15 * (rand(size(y1)) - 0.5);
+            
+            line(x1, y1, 'Parent', ax, 'Color', color, 'LineWidth', XKCD_LINE_WIDTH, 'Clipping', 'off');
+            
+            % Line 2: bottom-left to top-right
+            x2 = [xpts(i) - armLengthX, xpts(i) + armLengthX];
+            y2 = [ypts(i) - armLengthY, ypts(i) + armLengthY];
+            
+            % Add wobble
+            x2 = x2 + armLengthX * 0.15 * (rand(size(x2)) - 0.5);
+            y2 = y2 + armLengthY * 0.15 * (rand(size(y2)) - 0.5);
+            
+            line(x2, y2, 'Parent', ax, 'Color', color, 'LineWidth', XKCD_LINE_WIDTH, 'Clipping', 'off');
+        else
+            % Draw + shaped cross (horizontal and vertical lines)
+            % Horizontal line
+            x1 = [xpts(i) - armLengthX, xpts(i) + armLengthX];
+            y1 = [ypts(i), ypts(i)];
+            
+            % Add wobble
+            x1 = x1 + armLengthX * 0.15 * (rand(size(x1)) - 0.5);
+            y1 = y1 + armLengthY * 0.15 * (rand(size(y1)) - 0.5);
+            
+            line(x1, y1, 'Parent', ax, 'Color', color, 'LineWidth', XKCD_LINE_WIDTH, 'Clipping', 'off');
+            
+            % Vertical line
+            x2 = [xpts(i), xpts(i)];
+            y2 = [ypts(i) - armLengthY, ypts(i) + armLengthY];
+            
+            % Add wobble
+            x2 = x2 + armLengthX * 0.15 * (rand(size(x2)) - 0.5);
+            y2 = y2 + armLengthY * 0.15 * (rand(size(y2)) - 0.5);
+            
+            line(x2, y2, 'Parent', ax, 'Color', color, 'LineWidth', XKCD_LINE_WIDTH, 'Clipping', 'off');
+        end
+    end
 end
 
 
