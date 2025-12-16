@@ -4,6 +4,9 @@ function xkcdify(axesList, renderAxesLines)
 %   XKCDIFY( AXES ) re-renders all childen of AXES to have a hand drawn
 %   XKCD style, http://xkcd.com, AXES can be a single axes or a vector of axes
 %
+%   EXAMPLE:
+%       plot(1:5, '-xr'); xkcdify(gca);
+%
 %   NOTE: Only plots of type LINE and PATCH are re-rendered. This should 
 %   be sufficient for the majority of 2d plots such as:
 %       - plot
@@ -11,19 +14,27 @@ function xkcdify(axesList, renderAxesLines)
 %       - boxplot
 %       - etc...
 %
-%   NOTE: This function does not alter the actual style of the axes
-%   themselves, that functionality will be added in the next version.  I
-%   still have to figure out the best way to do this, if you have a
-%   suggestion please email me!
+%   NOTE: This function replace the actual axes by manually drawn lines,
+%   however this cause the figure does not resize properly, so I would
+%   recommend to call this function only after the plot is finalized, just
+%   before printing. 
 %
-%   Finally the most up to date version of this code can be found at:
+%   NOTE: The best font to use is xkcd Script, which is added in font directory
+%   and as to be added to your system. Original font can be downloaded from:
+%   https://github.com/ipython/xkcd-font
+%
+%   NOTE Finally the most up to date version of this code can be found at:
 %   https://github.com/slayton/matlab-xkcdify
+%   or forked newer version at:
+%   https://github.com/KaeroDot/matlab-xkcdify
 %
 % Copyright(c) 2012, Stuart P. Layton <stuart.layton@gmail.com> MIT
 % http://stuartlayton.com
+% Modified by KaeroDot 2025
 
 % Revision History
 %   2012/10/04 - Initial Release
+%   2025-12-16 - Modified axes, wobbly markers, texts, better font (KaeroDot)
 
     % ===== XKCDIFY CONFIGURATION CONSTANTS =====
     % Font settings
@@ -67,7 +78,7 @@ function xkcdify(axesList, renderAxesLines)
         % Change all text fonts to xkcd Script
         changeAllTextFonts(axHandle);
         
-    end
+    end % for axN
 
     
     
@@ -91,11 +102,11 @@ function renderNewAxesLine(ax)
     
     if hasXLabel
         extraBottomSpace = XKCD_XLABEL_SPACE;
-    endif
+    end
     
     if hasYLabel
         extraLeftSpace = XKCD_YLABEL_SPACE;
-    endif
+    end
     
     % Adjust original axes position to make room for labels
     if extraLeftSpace > 0 || extraBottomSpace > 0
@@ -105,7 +116,7 @@ function renderNewAxesLine(ax)
         pos(3) = pos(3) - extraLeftSpace;
         pos(4) = pos(4) - extraBottomSpace;
         set(ax, 'Position', pos);
-    endif
+    end
     
     % Get updated position and limits
     pos = getAxesPositionInUnits(ax,'Pixels');
@@ -180,7 +191,7 @@ function renderNewAxesLine(ax)
                      'Parent', newAxes, 'HorizontalAlignment', 'center', ...
                      'VerticalAlignment', 'top', 'FontName', XKCD_FONT_NAME, 'FontSize', XKCD_FONT_SIZE_NORMAL);
             end
-        endif
+        end
     end
     
     % Y-axis ticks
@@ -204,7 +215,7 @@ function renderNewAxesLine(ax)
                      'Parent', newAxes, 'HorizontalAlignment', 'right', ...
                      'VerticalAlignment', 'middle', 'FontName', XKCD_FONT_NAME, 'FontSize', XKCD_FONT_SIZE_NORMAL);
             end
-        endif
+        end
     end
     
     set(ax, 'FontName', XKCD_FONT_NAME, 'FontSize', XKCD_FONT_SIZE_NORMAL);
@@ -220,8 +231,8 @@ function renderNewAxesLine(ax)
             text(xLabelX, xLabelY, xlabelText, ...
                  'Parent', newAxes, 'HorizontalAlignment', 'center', ...
                  'VerticalAlignment', 'top', 'FontName', XKCD_FONT_NAME, 'FontSize', XKCD_FONT_SIZE_NORMAL);
-        endif
-    endif
+        end
+    end
     
     origYLabel = get(ax, 'YLabel');
     if ~isempty(origYLabel) && origYLabel ~= 0
@@ -234,10 +245,10 @@ function renderNewAxesLine(ax)
                  'Parent', newAxes, 'HorizontalAlignment', 'center', ...
                  'VerticalAlignment', 'bottom', 'Rotation', 90, ...
                  'FontName', XKCD_FONT_NAME, 'FontSize', XKCD_FONT_SIZE_NORMAL);
-        endif
-    endif
+        end
+    end
    
-end
+end % function renderNewAxesLine
 
 
 function operareOnChildren(C, ax)
@@ -269,7 +280,7 @@ function operareOnChildren(C, ax)
         end        
     end
     
-end
+end % function operareOnChildren
 
 function cartoonifyLine(l,  ax)
     
@@ -344,14 +355,19 @@ function cartoonifyLine(l,  ax)
         addBackgroundMask(xpts, ypts, get(l, 'LineWidth') * 3, ax);
         
         % Bring the colored line back to top after adding the background mask
-        uistack(l, 'top');
+        if isOctave
+            % uistack not implemented in GNU Octave, use local implementation
+            uistackGO(l, 'top');
+        else
+            uistack(l, 'top');
+        end
     else
         % If no line, just keep the linestyle as 'none'
         set(l, 'LineStyle', 'none');
-    end
+    end % if hasLine
 
     
-end
+end % function cartoonifyLine
 
 function cartoonifyAxesEdge(l, ax)
     
@@ -381,7 +397,7 @@ function cartoonifyAxesEdge(l, ax)
     end
     
     set(l, 'XData', xpts , 'YData', ypts, 'linestyle', '-');    
-end
+end % function cartoonifyAxesEdge
 
 
 
@@ -403,7 +419,7 @@ function [x, y] = upSampleAndJitter(x, y, jx, jy, n)
     x = x + smooth( generateNoise(n) .* rand(n,1) .* jx )';
     y = y + smooth( generateNoise(n) .* rand(n,1) .* jy )';
 
-end
+end % function upSampleAndJitter
 
 function noise = generateNoise(n)
     noise = zeros(n,1);
@@ -425,14 +441,14 @@ function noise = generateNoise(n)
         i = i +1;
     end
     noise = noise(:);
-end
+end % fnction generateNoise
 
 function addBackgroundMask(xpts, ypts, w, ax)
    
     bg = get(ax, 'color');
     line(xpts, ypts, 'linewidth', w, 'color', bg, 'Parent', ax);
     
-end
+end % function addBackgroundMask
 
 function pos = getAxesPositionInUnits(ax, units)
     
@@ -457,7 +473,8 @@ function pos = getAxesPositionInUnits(ax, units)
     end
 
     
-end
+end % function getAxesPositionInUnits
+
 function setAxesPositionInUnits(ax, pos, units)
     
     if strcmp( get( ax,'Units'), units )
@@ -483,7 +500,7 @@ function setAxesPositionInUnits(ax, pos, units)
         set(ax,'Potision', pos);
         set(ax,'Units', origUnits);
     end
-end
+end % function setAxesPositionInUnits
 
 % Main function for converting units to pixels, refers to the main drawing
 % axes
@@ -495,7 +512,7 @@ function [ppX ppY] = getPixelsPerUnit()
         return;
     end
     [ppX ppY] = getPixelsPerUnitForAxes(axHandle);
-end
+end % function getPixelsPerUnit
 
 % Worker function for converting units to pixels, can be used with any axes
 % allowing it to be used with subsequently created axes that are involved
@@ -511,7 +528,7 @@ function [px py] = getPixelsPerUnitForAxes(axH)
 
     px = pos(3) ./ diff(xLim);
     py = pos(4) ./ diff(yLim);
-end
+end % function getPixelsPerUnitForAxes
 
 
 
@@ -524,7 +541,7 @@ function [ len ] = getLineLength(x, y)
     
     %compute the length of the line
     len = sum( sqrt( diff( x ).^2 + diff( y ).^2 ) );    
-end
+end % function getLineLength
 
 
 function v = smooth(v)
@@ -539,7 +556,7 @@ function v = smooth(v)
     v = v(nPad+1:end-nPad);   
     v = v(:);
 
-end
+end % function smooth
 
 % This method is by far the buggiest part of the script. It appears to work,
 % however it fails to retain the original color of the patch, and sets it to
@@ -596,7 +613,7 @@ function cartoonifyPatch(p, ax)
         
         if hasVertexNormals
             newVtxNorm( end+1, 1:3) = nan;
-        endif
+        end
         
 
         % set the first and last vertex for each bar back in its original
@@ -610,41 +627,45 @@ function cartoonifyPatch(p, ax)
         if hasVertexNormals
             t = repmat( oldVtxNorm( 1+1 + (i-1)*(nOld+1) , : ), nNew, 1);
             newVtxNorm( end+ (1 : nNew) , : ) = t;
-        endif
+        end
         
         addBackgroundMask(xNew(:,i), yNew(:,i), 6, ax);
        
-    end
-    
+    end % for
+
     newVtx(end+1, :) = oldVtx(end,:);
-    
+
     if hasVertexNormals
         newVtxNorm(end+1, : ) = nan;
-    endif
-    
-    
+    end
+
     % construct the new vertex data
     newFaces = true(size(newVtx,1),1);
     newFaces(1:nNew+1:end) = false;
     newFaces = find(newFaces);
     newFaces = reshape(newFaces, nNew, nPatch)';
-    
+
     % I can't seem to get this working correct, so I'll set the color to
     % the default matlab blue not the same as 'color', 'blue'!
     newFaceVtxCData = [ 0 0 .5608 ];
-      
+
     if hasVertexNormals
         set(p, 'CData', cNew, 'FaceVertexCData', newFaceVtxCData, 'Faces', newFaces,  ...
             'Vertices', newVtx, 'XData', xNew, 'YData', yNew, 'VertexNormals', newVtxNorm);
     else
         set(p, 'CData', cNew, 'FaceVertexCData', newFaceVtxCData, 'Faces', newFaces,  ...
             'Vertices', newVtx, 'XData', xNew, 'YData', yNew);
-    endif
+    end
     %set(p, 'EdgeColor', 'none');
-    
+
     % Bring the patch back to top after adding background masks
-    uistack(p, 'top');
-end
+    if isOctave
+        % uistack not implemented in GNU Octave, use local implementation
+        uistackGO(p, 'top');
+    else
+        uistack(p, 'top');
+    end
+end % function cartoonifyPatch
 
 function changeAllTextFonts(ax)
     % Change font of text labels in the axes to xkcd Script
@@ -657,27 +678,27 @@ function changeAllTextFonts(ax)
     titleHandle = get(ax, 'Title');
     if ~isempty(titleHandle) && titleHandle ~= 0
         set(titleHandle, 'FontName', XKCD_FONT_NAME, 'FontSize', XKCD_FONT_SIZE_TITLE);
-    endif
+    end
     
     % Change xlabel
     xlabelHandle = get(ax, 'XLabel');
     if ~isempty(xlabelHandle) && xlabelHandle ~= 0
         set(xlabelHandle, 'FontName', XKCD_FONT_NAME, 'FontSize', XKCD_FONT_SIZE_NORMAL);
-    endif
+    end
     
     % Change ylabel
     ylabelHandle = get(ax, 'YLabel');
     if ~isempty(ylabelHandle) && ylabelHandle ~= 0
         set(ylabelHandle, 'FontName', XKCD_FONT_NAME, 'FontSize', XKCD_FONT_SIZE_NORMAL);
-    endif
+    end
     
     % Change zlabel (for 3D plots)
     zlabelHandle = get(ax, 'ZLabel');
     if ~isempty(zlabelHandle) && zlabelHandle ~= 0
         set(zlabelHandle, 'FontName', XKCD_FONT_NAME, 'FontSize', XKCD_FONT_SIZE_NORMAL);
-    endif
+    end
     
-end
+end % end function changeAllTextFonts
 
 function drawWobblyCircles(xpts, ypts, color, ax)
     % Draw wobbly circles at each data point
@@ -702,8 +723,8 @@ function drawWobblyCircles(xpts, ypts, color, ax)
         
         % Draw the wobbly circle
         line(circleX, circleY, 'Parent', ax, 'Color', color, 'LineWidth', XKCD_LINE_WIDTH, 'Clipping', 'off');
-    end
-end
+    end % end for
+end % function drawWobblyCircles
 
 function drawWobblyCrosses(xpts, ypts, color, ax, markerType)
     % Draw wobbly crosses or plus signs at each data point
@@ -756,9 +777,22 @@ function drawWobblyCrosses(xpts, ypts, color, ax, markerType)
             y2 = y2 + armLengthY * 0.15 * (rand(size(y2)) - 0.5);
             
             line(x2, y2, 'Parent', ax, 'Color', color, 'LineWidth', XKCD_LINE_WIDTH, 'Clipping', 'off');
-        end
-    end
-end
+        end % if strcmp
+    end % if for
+end % end function drawWobblyCrosses
+
+function retval = isOctave
+% checks if GNU Octave or Matlab
+% according https://www.gnu.org/software/octave/doc/v4.0.1/How-to-distinguish-between-Octave-and-Matlab_003f.html
+
+  persistent cacheval;  % speeds up repeated calls
+
+  if isempty (cacheval)
+    cacheval = (exist ('OCTAVE_VERSION', 'builtin') > 0);
+  end % if
+
+  retval = cacheval;
+end % function isOctave
 
 
-end
+end % function xkcdify
