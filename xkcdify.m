@@ -45,6 +45,7 @@ function xkcdify(axesList, renderAxesLines)
     % Label spacing (in pixels)
     persistent XKCD_XLABEL_SPACE = 35;        % Extra space at bottom for xlabel
     persistent XKCD_YLABEL_SPACE = 45;        % Extra space at left for ylabel
+    persistent XKCD_TITLE_SPACE = 30;         % Extra space at top for title
     persistent XKCD_LINE_WIDTH = 3;           % Line width for hand-drawn axes, lines and markers
     % ==========================================
     
@@ -90,8 +91,10 @@ function renderNewAxesLine(ax)
     % Check if xlabel or ylabel exist and need space
     origXLabel = get(ax, 'XLabel');
     origYLabel = get(ax, 'YLabel');
+    origTitle = get(ax, 'Title');
     hasXLabel = ~isempty(origXLabel) && origXLabel ~= 0 && ~isempty(get(origXLabel, 'String'));
     hasYLabel = ~isempty(origYLabel) && origYLabel ~= 0 && ~isempty(get(origYLabel, 'String'));
+    hasTitle = ~isempty(origTitle) && origTitle ~= 0 && ~isempty(get(origTitle, 'String'));
     
     % Get original axes position and adjust to make room for labels with larger fonts
     pos = getAxesPositionInUnits(ax,'Pixels');
@@ -99,6 +102,7 @@ function renderNewAxesLine(ax)
     % Add space for labels by shrinking the axes and moving it
     extraBottomSpace = 0;
     extraLeftSpace = 0;
+    extraTopSpace = 0;
     
     if hasXLabel
         extraBottomSpace = XKCD_XLABEL_SPACE;
@@ -107,14 +111,20 @@ function renderNewAxesLine(ax)
     if hasYLabel
         extraLeftSpace = XKCD_YLABEL_SPACE;
     end
+
+    if hasTitle
+        extraTopSpace = max(XKCD_TITLE_SPACE, round(1.6 * XKCD_FONT_SIZE_TITLE));
+    end
     
     % Adjust original axes position to make room for labels
-    if extraLeftSpace > 0 || extraBottomSpace > 0
+    if extraLeftSpace > 0 || extraBottomSpace > 0 || extraTopSpace > 0
         set(ax, 'Units', 'pixels');
         pos(1) = pos(1) + extraLeftSpace;
         pos(2) = pos(2) + extraBottomSpace;
         pos(3) = pos(3) - extraLeftSpace;
-        pos(4) = pos(4) - extraBottomSpace;
+        pos(4) = pos(4) - extraBottomSpace - extraTopSpace;
+        pos(3) = max(pos(3), 1);
+        pos(4) = max(pos(4), 1);
         set(ax, 'Position', pos);
     end
     
